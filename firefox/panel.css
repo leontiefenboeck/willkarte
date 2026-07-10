@@ -1,0 +1,69 @@
+/* willkarte — styles injected into willhaben pages.
+   A floating toggle button, and a full-screen map overlay.
+   Scoped under #willkarte-* ids to avoid clashing with willhaben's CSS. */
+
+#willkarte-toggle {
+  position: fixed !important;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2147483646;
+  background: #f60;
+  color: #fff;
+  border: none;
+  border-radius: 24px;
+  padding: 12px 18px;
+  font: 600 15px/1 system-ui, sans-serif;
+  cursor: pointer;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
+}
+#willkarte-toggle:hover {
+  background: #e65500;
+}
+
+#willkarte-overlay {
+  position: fixed !important;
+  inset: 0;
+  z-index: 2147483647;
+  display: none;
+  flex-direction: column;
+  background: #fff;
+}
+#willkarte-overlay.willkarte-open {
+  display: flex;
+}
+
+#willkarte-bar {
+  flex: 0 0 auto;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  background: #1f2430;
+  color: #fff;
+  font: 600 13px/1 system-ui, sans-serif;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+#willkarte-close {
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  color: #fff;
+  font: 600 12px/1 system-ui, sans-serif;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 5px;
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 1;
+}
+#willkarte-close:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+#willkarte-iframe {
+  flex: 1 1 auto;
+  width: 100%;
+  border: none;
+  display: block;
+}
