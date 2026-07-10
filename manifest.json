@@ -1,0 +1,29 @@
+{
+  "manifest_version": 2,
+  "name": "willkarte",
+  "version": "1.0.0",
+  "description": "Shows willhaben.at real estate search results on an interactive map with price markers.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "willkarte@leont.dev"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.willhaben.at/iad/immobilien/*"],
+      "js": ["content.js"],
+      "css": ["panel.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "content_security_policy": "script-src 'self' blob: 'wasm-unsafe-eval'; worker-src 'self' blob:; object-src 'self'",
+  "web_accessible_resources": [
+    "map.html",
+    "map.js",
+    "vendor/leaflet.js",
+    "vendor/leaflet.css",
+    "vendor/maplibre-gl.js",
+    "vendor/maplibre-gl.css",
+    "vendor/leaflet-maplibre-gl.js"
+  ]
+}
