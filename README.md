@@ -26,7 +26,7 @@ Each browser has its own ready-to-load folder — no setup needed.
 
 ---
 
-Then open any willhaben real estate search and click the **🗺 Karte** button in the bottom-right corner.
+Then open any willhaben real estate search and click the **🗺 Karte** button in the bottom-right corner. Try reloading the page it the button isn't there.
 
 ## Good to know
 
