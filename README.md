@@ -2,38 +2,27 @@
 
 See willhaben.at real estate listings on a map.
 
-Set your filters on willhaben as usual, then hit the **🗺 Karte** button — every
-flat or house in your search shows up as a price pill on an interactive map.
-Hover one for a photo, size, rooms, and a link to the ad.
-
-*willkarte = willhaben + Karte ("map").*
+Set your filters on willhaben as usual, then hit the **🗺 Karte** button — every flat or house in your search shows up as a price pill on an interactive map. Hover one for a photo, size, rooms, and a link to the ad.
 
 ## Install
-
-Each browser has its own ready-to-load folder — no setup needed.
-
-### Firefox — *recommended*
-
-1. Open `about:debugging#/runtime/this-firefox`
-2. Click **Load Temporary Add-on…**
-3. Select **`firefox/manifest.json`**
 
 ### Chrome / Edge / Brave
 
 1. Open `chrome://extensions`
 2. Turn on **Developer mode** (top-right)
-3. Click **Load unpacked** and pick the **`chrome/`** folder
+3. Click **Load unpacked** and pick the **`src`** folder
+
+### Firefox 
+
+Only works if xpinstall.signatures.required is set to false.
+
+1. Open `about:addons` 
+2. Click ⚙️ → **Install Add-on From File…** 
+3. Pick **`willkarte-firefox.xpi`**.
 
 ---
 
-Then open any willhaben real estate search and click the **🗺 Karte** button in the bottom-right corner. Try reloading the page it the button isn't there.
-
-## Good to know
-
-- Filters live on willhaben — set them there, then open the map. It reloads the
-  current search each time you open it, so no page refresh needed.
-- On Chrome the map looks slightly simpler (a technical limitation); everything
-  works the same.
+Then open any willhaben real estate search and click the **🗺 Karte** button in the bottom-right corner. Reload the page if the button isn't there.
 
 ## Attribution
 

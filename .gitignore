@@ -1,7 +1,0 @@
-# Claude Code local settings
-.claude/
-CLAUDE.md
-
-# OS / editor cruft
-.DS_Store
-*.swp

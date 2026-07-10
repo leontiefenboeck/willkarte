@@ -70,18 +70,22 @@
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
 
-    // Some browsers (notably Chrome under Manifest V3) block MapLibre's web worker
-    // via CSP, so the vector map silently never renders. If it hasn't loaded
-    // shortly, drop it and fall back to raster tiles.
+    // If the vector engine can't run (e.g. Chrome under Manifest V3 blocks
+    // MapLibre's web worker via CSP) it fires an error before it ever renders —
+    // fall back to raster then. A slow load is NOT an error, so this leaves a
+    // working (or still-loading) vector map alone.
     const glMap = gl.getMaplibreMap && gl.getMaplibreMap();
-    let vectorOk = false;
-    if (glMap) glMap.on("load", () => (vectorOk = true));
-    setTimeout(() => {
-      if (vectorOk) return;
-      console.log("[willkarte] vector basemap didn't load — using raster");
-      map.removeLayer(gl);
-      useRaster();
-    }, 5000);
+    if (glMap) {
+      glMap.on("error", (ev) => {
+        if (glMap.loaded()) return; // already worked — ignore later tile hiccups
+        const msg = (ev && ev.error && ev.error.message) || "";
+        if (!/worker|blob|security|content security|not allowed|failed to construct/i.test(msg))
+          return;
+        console.log("[willkarte] vector engine blocked — using raster:", msg);
+        map.removeLayer(gl);
+        useRaster();
+      });
+    }
   } catch (e) {
     console.log("[willkarte] vector basemap unavailable, using raster:", e);
     useRaster();
