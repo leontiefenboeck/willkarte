@@ -81,7 +81,7 @@
           title: a.HEADING || ad.description || "",
           address: [a.ADDRESS, a.POSTCODE, a.LOCATION].filter(Boolean).join(", "),
           size: a["ESTATE_SIZE/LIVING_AREA"] || a.ESTATE_SIZE || null,
-          rooms: a.OF_ROOMS || null,
+          rooms: a.NUMBER_OF_ROOMS || null,
           thumb: a.MMO ? "https://cache.willhaben.at/mmo/" + a.MMO : null,
           url: a.SEO_URL ? "https://www.willhaben.at/iad/" + a.SEO_URL : ad.selfLink || null,
         };
@@ -99,7 +99,7 @@
   overlay.innerHTML =
     '<div id="willkarte-bar">' +
     '<span id="willkarte-count">willkarte</span>' +
-    '<button type="button" id="willkarte-close" title="Zurück zur Liste">Zurück zur Liste →</button>' +
+    '<button type="button" id="willkarte-close" title="Karte schließen">✕ Karte schließen</button>' +
     "</div>";
 
   const iframe = document.createElement("iframe");
@@ -112,12 +112,25 @@
   function openMap() {
     overlay.classList.add("willkarte-open");
     toggle.style.display = "none";
+    // Push a history entry so the browser's back button closes the map
+    // instead of navigating willhaben away. Tagged so we know it's ours.
+    if (!(history.state && history.state.willkarte)) {
+      history.pushState({ willkarte: true }, "");
+    }
     startLoading(); // (re)load the current search each time the map opens
     post({ type: "willkarte:show" }); // the map was sized while hidden — recalc
   }
-  function closeMap() {
+  // hideMap: just tear down the overlay (no history change).
+  function hideMap() {
     overlay.classList.remove("willkarte-open");
     toggle.style.display = "";
+  }
+  // closeMap: user-initiated close (button/Escape). Pop our history entry,
+  // which fires popstate → hideMap. If our entry isn't on top (shouldn't
+  // happen), hide directly.
+  function closeMap() {
+    if (history.state && history.state.willkarte) history.back();
+    else hideMap();
   }
 
   toggle.addEventListener("click", openMap);
@@ -128,6 +141,11 @@
   });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && overlay.classList.contains("willkarte-open")) closeMap();
+  });
+  // Browser back button: if the map is open, close it (consuming the entry
+  // we pushed on open) rather than letting willhaben navigate.
+  window.addEventListener("popstate", () => {
+    if (overlay.classList.contains("willkarte-open")) hideMap();
   });
 
   function setCount(loaded) {

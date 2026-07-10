@@ -113,7 +113,7 @@
   }
   function detailsHtml(l) {
     const specs = [
-      l.rooms ? l.rooms + " Zi." : null,
+      parseFloat(l.rooms) > 0 ? l.rooms + " Zi." : null,
       l.size ? l.size + " m²" : null,
     ].filter(Boolean).join(" · ");
     return (
@@ -232,6 +232,16 @@
     });
     m.bindPopup(popupOneHtml(l), { minWidth: 220, autoPan: false });
     attachHoverPopup(m);
+    // Clicking the pill opens the willhaben ad, same as clicking the image.
+    if (l.url) {
+      m.on("add", () => {
+        const el = m.getElement() && m.getElement().querySelector(".wk-price");
+        if (el) {
+          el.style.cursor = "pointer";
+          el.addEventListener("click", () => window.open(l.url, "_blank", "noopener"));
+        }
+      });
+    }
     return m;
   }
 
