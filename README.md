@@ -14,7 +14,7 @@ Set your filters on willhaben as usual, then hit the **🗺 Karte** button — e
 
 ### Firefox 
 
-Only works if xpinstall.signatures.required is set to false.
+Only works if xpinstall.signatures.required in `about:config` is set to false (availabe in ESR, Nighly or Developer builds).
 
 1. Open `about:addons` 
 2. Click ⚙️ → **Install Add-on From File…** 
