@@ -10,15 +10,23 @@ Hover one for a photo, size, rooms, and a link to the ad.
 
 ## Install
 
-Use the folder for your browser — `firefox/` or `chrome/`.
+Each browser has its own ready-to-load folder — no setup needed.
 
-**Firefox (Recommended) ** — open `about:debugging#/runtime/this-firefox` →
-**Load Temporary Add-on…** → pick `firefox/manifest.json`
+### Firefox — *recommended*
 
-**Chrome / Edge / Brave** — open `chrome://extensions` → turn on
-**Developer mode** → **Load unpacked** → pick the `chrome` folder
+1. Open `about:debugging#/runtime/this-firefox`
+2. Click **Load Temporary Add-on…**
+3. Select **`firefox/manifest.json`**
 
-Then open a willhaben real estate search and click **🗺 Karte** (bottom-right).
+### Chrome / Edge / Brave
+
+1. Open `chrome://extensions`
+2. Turn on **Developer mode** (top-right)
+3. Click **Load unpacked** and pick the **`chrome/`** folder
+
+---
+
+Then open any willhaben real estate search and click the **🗺 Karte** button in the bottom-right corner.
 
 ## Good to know
 
