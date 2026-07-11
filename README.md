@@ -8,26 +8,17 @@ bzw. jedes Haus aus der Suche erscheint als Preis-Pin auf einer interaktiven Kar
 ![Alle Inserate der Suche als Preis-Pins auf der Karte](screenshots/uebersicht.png)
 
 Beim Darüberfahren öffnet sich ein Vorschaufenster mit Fotos, Größe, Zimmern und
-Adresse; ein Klick führt direkt zum Inserat. Über den Stern lassen sich Inserate
+Adresse; ein Klick führt zum Inserat. Über den Stern lassen sich Inserate
 direkt von der Karte aus zur Merkliste hinzufügen oder entfernen (dafür muss man bei
-willhaben angemeldet sein); gemerkte Inserate sind auf der Karte goldfarben markiert
-und werden immer angezeigt.
+willhaben angemeldet sein); gemerkte Inserate sind auf der Karte goldfarben markiert.
 
 ![Vorschaufenster mit Fotogalerie, Preis, Größe, Adresse und Merkliste-Stern](screenshots/vorschau.png)
 
-## Hinweis zur Genauigkeit der Positionen
-
-Die Koordinaten stammen direkt von willhaben — willkarte zeichnet sie nur ein.
-**Nicht jedes Inserat liegt exakt an der richtigen Stelle.** Vor allem dort, wo keine
-genaue Adresse angegeben ist, sondern nur z. B. eine Postleitzahl oder ein Bezirk,
-setzt willhaben die Koordinaten irgendwo in dieses Gebiet (oft in dessen Mitte).
-Solche Inserate können also einige Straßenzüge danebenliegen — mehrere Inserate
-landen dann auch gerne auf demselben Punkt. Die Karte ist damit gut für den
-Überblick, aber die genaue Lage bitte immer im Inserat selbst prüfen.
-
 ## Installation
 
-### Chrome / Edge / Brave
+Diesen Ordner als Zip donwloaden und entpacken oder Repo clonen. Dann je nach Browser:
+
+### Chromium-based (Chrome, Edge, Brave...)
 
 1. `chrome://extensions` öffnen
 2. **Entwicklermodus** aktivieren (rechts oben)
@@ -46,6 +37,16 @@ auf `false` gesetzt ist (möglich in ESR-, Nightly- oder Developer-Versionen).
 
 Danach eine beliebige Immobiliensuche auf willhaben öffnen und rechts unten auf
 **🗺 Karte** klicken. Falls der Button fehlt, die Seite neu laden.
+
+## Hinweis zur Genauigkeit der Positionen
+
+Die Koordinaten stammen direkt von willhaben — willkarte zeichnet sie nur ein.
+**Nicht jedes Inserat liegt exakt an der richtigen Stelle.** Vor allem dort, wo keine
+genaue Adresse angegeben ist, sondern nur z. B. eine Postleitzahl oder ein Bezirk,
+setzt willhaben die Koordinaten irgendwo in dieses Gebiet (oft in dessen Mitte).
+Solche Inserate können also einige Straßenzüge danebenliegen — mehrere Inserate
+landen dann auch gerne auf demselben Punkt. Die Karte ist damit gut für den
+Überblick, aber die genaue Lage bitte immer im Inserat selbst prüfen.
 
 ## Attribution
 
