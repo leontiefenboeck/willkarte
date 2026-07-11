@@ -9,8 +9,8 @@
 //    Merging uses a fixed real-world threshold (projected at COINCIDE_ZOOM), so it
 //    only merges flats genuinely on top of each other — never ones that separate
 //    as you zoom in.
-//  - Up to MAX_PILLS price pills are drawn, spaced on a pixel grid so they don't
-//    overlap and stay a roughly constant, readable number in view.
+//  - Up to MAX_PILLS price pills are drawn, placed greedily from the middle of the
+//    view outwards and never allowed to overlap.
 //  - Units that don't get a pill are hinted with small empty "density dots".
 //  - Popups open on HOVER (with a short close delay so you can reach them).
 //  - The view is recomputed on pan/zoom (reconciled, so open popups survive).
@@ -19,8 +19,11 @@
   "use strict";
 
   const AUSTRIA = [47.6, 13.3];
-  const PILL_CELL = 64; // min spacing between price pills (screen px)
-  const MAX_PILLS = 30; // cap on price pills shown at once
+  // Min gap between two price pill centres (screen px). A pill is ~80x23 px, so the
+  // separation is rectangular: pills may stack tightly in rows but never side-swipe.
+  const PILL_W = 86;
+  const PILL_H = 30;
+  const MAX_PILLS = 100; // cap on price pills shown at once
   const DOT_CELL = 46; // coarse grid for density dots (screen px)
   const COINCIDE_ZOOM = 18; // reference zoom for "same spot" test
   const COINCIDE_PX = 22; // <= this many px apart at that zoom => same spot
@@ -479,37 +482,55 @@
     const bounds = map.getBounds().pad(0.15);
 
     const desired = new Map(); // key -> () => marker
-    const pillCells = new Set();
     const leftovers = [];
-    let pills = 0;
 
     const marker = (u) => () => (u.n > 1 ? groupMarker(u) : pricePillMarker(u.flats[0]));
+    // Pills are placed greedily and must not collide: a candidate is rejected if its
+    // centre lands inside the PILL_W x PILL_H box of one already placed.
+    const placed = [];
+    const collides = (p) =>
+      placed.some((q) => Math.abs(p.x - q.x) < PILL_W && Math.abs(p.y - q.y) < PILL_H);
+    // Reconciliation key: the pill's position rounded to a PILL_W x PILL_H grid. It's
+    // absolute (not viewport-relative), so it survives a pan and the open popup with
+    // it. Two non-colliding pills can never round to the same cell, so keys are unique.
+    const cellKey = (p) => Math.round(p.x / PILL_W) + "_" + Math.round(p.y / PILL_H);
 
     // Merkliste units first: they always get a pill — never demoted to a dot by the
-    // MAX_PILLS cap or the spacing grid — so a starred flat can't hide at any zoom.
+    // MAX_PILLS cap or by a collision — so a starred flat can't hide at any zoom.
     // Their key is the listing id, not the cell, so it survives a zoom change.
     for (const u of units) {
       if (!u.flats.some(isSaved)) continue;
       if (!bounds.contains([u.lat, u.lng])) continue;
       const p = map.project([u.lat, u.lng], zoom);
-      const cell = Math.round(p.x / PILL_CELL) + "_" + Math.round(p.y / PILL_CELL);
-      pillCells.add(cell);
+      placed.push(p);
+      const key = cellKey(p);
       // If it's already on screen as a normal pill, keep that key: the reconciler
       // then leaves the marker (and its open popup) alone when you star it.
-      desired.set(shown.has("p:" + cell) ? "p:" + cell : "s:" + u.flats[0].id, marker(u));
+      desired.set(shown.has("p:" + key) ? "p:" + key : "s:" + u.flats[0].id, marker(u));
     }
 
-    for (const u of units) {
-      if (u.flats.some(isSaved)) continue; // already pinned above
-      if (!bounds.contains([u.lat, u.lng])) continue;
+    // Everything else competes for the MAX_PILLS budget, nearest the middle of the
+    // view first — so pills cluster where you're looking instead of scattering. Ties
+    // (within one pill's width of each other) fall back to the order of `units`,
+    // which is groups first, then cheapest.
+    const c = map.project(map.getCenter(), zoom);
+    const candidates = [];
+    units.forEach((u, i) => {
+      if (u.flats.some(isSaved)) return; // already pinned above
+      if (!bounds.contains([u.lat, u.lng])) return;
       const p = map.project([u.lat, u.lng], zoom);
-      const cell = Math.round(p.x / PILL_CELL) + "_" + Math.round(p.y / PILL_CELL);
-      if (pills < MAX_PILLS && !pillCells.has(cell)) {
-        pillCells.add(cell);
+      candidates.push({ u, p, i, d: Math.round(c.distanceTo(p) / PILL_W) });
+    });
+    candidates.sort((a, b) => a.d - b.d || a.i - b.i);
+
+    let pills = 0;
+    for (const cand of candidates) {
+      if (pills < MAX_PILLS && !collides(cand.p)) {
+        placed.push(cand.p);
         pills++;
-        desired.set("p:" + cell, marker(u));
+        desired.set("p:" + cellKey(cand.p), marker(cand.u));
       } else {
-        leftovers.push({ u, p });
+        leftovers.push(cand);
       }
     }
 
