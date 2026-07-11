@@ -3,6 +3,7 @@
   "name": "willkarte",
   "version": "1.0.0",
   "description": "Shows willhaben.at real estate search results on an interactive map with price markers.",
+  "host_permissions": ["https://www.willhaben.at/*"],
   "content_scripts": [
     {
       "matches": ["https://www.willhaben.at/iad/immobilien/*"],

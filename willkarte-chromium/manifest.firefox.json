@@ -10,6 +10,7 @@
       "id": "willkarte@leont.dev"
     }
   },
+  "permissions": ["https://www.willhaben.at/*"],
   "content_scripts": [
     {
       "matches": ["https://www.willhaben.at/iad/immobilien/*"],

@@ -107,7 +107,9 @@
   // without those the BFF rejects the request.
   // `loginId` sits in the page's own __NEXT_DATA__ when signed in; signed out it's
   // absent and the map simply shows no stars.
-  const API = "/webapi";
+  // Absolute, not "/webapi/…": in Firefox a content-script fetch runs with the
+  // extension's principal, so a relative URL has no page origin to resolve against.
+  const API = "https://www.willhaben.at/webapi";
   const CSRF = "x-bbx-csrf-token";
   const loginId = (() => {
     const p = rootFrom(document)?.props?.profileData;
