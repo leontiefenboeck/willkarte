@@ -22,7 +22,7 @@ Diesen Ordner als Zip donwloaden und entpacken oder Repo clonen. Dann je nach Br
 
 1. `chrome://extensions` öffnen
 2. **Entwicklermodus** aktivieren (rechts oben)
-3. Auf **Entpackte Erweiterung laden** klicken und den Ordner **`src`** auswählen
+3. Auf **Entpackte Erweiterung laden** klicken und den Ordner **`willkarte-chromium`** auswählen
 
 ### Firefox
 
