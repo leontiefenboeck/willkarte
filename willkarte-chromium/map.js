@@ -9,8 +9,8 @@
 //    Merging uses a fixed real-world threshold (projected at COINCIDE_ZOOM), so it
 //    only merges flats genuinely on top of each other — never ones that separate
 //    as you zoom in.
-//  - Up to MAX_PILLS price pills are drawn, placed greedily from the middle of the
-//    view outwards and never allowed to overlap.
+//  - A slider-controlled number of price pills is drawn, placed greedily from the
+//    middle of the view outwards; they don't overlap until you ask for more than fit.
 //  - Units that don't get a pill are hinted with small empty "density dots".
 //  - Popups open on HOVER (with a short close delay so you can reach them).
 //  - The view is recomputed on pan/zoom (reconciled, so open popups survive).
@@ -23,7 +23,9 @@
   // separation is rectangular: pills may stack tightly in rows but never side-swipe.
   const PILL_W = 86;
   const PILL_H = 30;
-  const MAX_PILLS = 100; // cap on price pills shown at once
+  // Cap on price pills at once — driven by the slider in the overlay's top bar. Past
+  // what fits collision-free, the extra pills are drawn overlapping rather than dropped.
+  let maxPills = 50;
   const DOT_CELL = 46; // coarse grid for density dots (screen px)
   const COINCIDE_ZOOM = 18; // reference zoom for "same spot" test
   const COINCIDE_PX = 22; // <= this many px apart at that zoom => same spot
@@ -496,7 +498,7 @@
     const cellKey = (p) => Math.round(p.x / PILL_W) + "_" + Math.round(p.y / PILL_H);
 
     // Merkliste units first: they always get a pill — never demoted to a dot by the
-    // MAX_PILLS cap or by a collision — so a starred flat can't hide at any zoom.
+    // pill cap or by a collision — so a starred flat can't hide at any zoom.
     // Their key is the listing id, not the cell, so it survives a zoom change.
     for (const u of units) {
       if (!u.flats.some(isSaved)) continue;
@@ -509,7 +511,7 @@
       desired.set(shown.has("p:" + key) ? "p:" + key : "s:" + u.flats[0].id, marker(u));
     }
 
-    // Everything else competes for the MAX_PILLS budget, nearest the middle of the
+    // Everything else competes for the maxPills budget, nearest the middle of the
     // view first — so pills cluster where you're looking instead of scattering. Ties
     // (within one pill's width of each other) fall back to the order of `units`,
     // which is groups first, then cheapest.
@@ -523,15 +525,31 @@
     });
     candidates.sort((a, b) => a.d - b.d || a.i - b.i);
 
+    // First pass: spaced-out pills, no overlap.
     let pills = 0;
+    const rejected = [];
     for (const cand of candidates) {
-      if (pills < MAX_PILLS && !collides(cand.p)) {
+      if (pills >= maxPills) {
+        leftovers.push(cand);
+      } else if (collides(cand.p)) {
+        rejected.push(cand);
+      } else {
         placed.push(cand.p);
         pills++;
         desired.set("p:" + cellKey(cand.p), marker(cand.u));
-      } else {
-        leftovers.push(cand);
       }
+    }
+
+    // Second pass: the user asked for more pills than fit without overlapping, so
+    // honour the number and let them overlap. Keyed by unit id, not by cell — cell
+    // keys are only unique among non-colliding pills.
+    for (const cand of rejected) {
+      if (pills >= maxPills) {
+        leftovers.push(cand);
+        continue;
+      }
+      pills++;
+      desired.set("o:" + cand.u.flats[0].id, marker(cand.u));
     }
 
     // Density dots for everything that didn't get a pill, one per coarse cell.
@@ -600,6 +618,10 @@
       document.body.classList.toggle("wk-can-save", canSave);
       paintStars();
       updateVisible(); // a newly starred flat gets promoted from dot to pill
+    }
+    if (d.type === "willkarte:maxpills" && d.n >= 0) {
+      maxPills = d.n;
+      updateVisible();
     }
     if (d.type === "willkarte:show")
       setTimeout(() => {

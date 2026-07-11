@@ -20,6 +20,7 @@
   const MAX_LISTINGS = 1000;
   const ROWS_PER_PAGE = 100; // requested page size (willhaben may cap it lower)
   const MAX_PAGES = 40; // hard safety bound on number of requests
+  const DEFAULT_PILLS = 50; // price pills shown at once (slider in the top bar)
   const PAGE_DELAY_MS = 200; // pause between requests
 
   // Load state. A fresh load starts each time the map is opened; `loadGen`
@@ -194,6 +195,13 @@
   overlay.innerHTML =
     '<div id="willkarte-bar">' +
     '<span id="willkarte-count">willkarte</span>' +
+    '<label id="willkarte-pills" title="Wie viele Preise gleichzeitig auf der Karte. ' +
+    'Über das, was überschneidungsfrei Platz hat, werden die Preise übereinander gezeichnet.">' +
+    "<span>Sichtbare Preise</span>" +
+    '<input type="range" id="willkarte-pills-range" min="0" max="' + DEFAULT_PILLS +
+    '" step="1" value="' + DEFAULT_PILLS + '">' +
+    '<output id="willkarte-pills-val">' + DEFAULT_PILLS + "</output>" +
+    "</label>" +
     '<button type="button" id="willkarte-close" title="Karte schließen">✕ Karte schließen</button>' +
     "</div>";
 
@@ -228,6 +236,36 @@
     else hideMap();
   }
 
+  // How many price pills the map draws at once. Lives here (not in the map) so the
+  // control can sit in the top bar; the map is told on every change and on ready.
+  // The maximum is the number of loaded listings, i.e. "show them all" — past what
+  // fits without overlapping, the map stops spacing them and just draws them.
+  const pillRange = overlay.querySelector("#willkarte-pills-range");
+  const pillVal = overlay.querySelector("#willkarte-pills-val");
+  function sendMaxPills() {
+    post({ type: "willkarte:maxpills", n: Number(pillRange.value) });
+  }
+  // Called as listings stream in: the ceiling is the result count ("show them all"),
+  // and until the user touches the slider its value is DERIVED from that count — so a
+  // search with 3 hits shows 3, not a meaningless "50 of 3".
+  let pillsTouched = false;
+  function setPillMax(loaded) {
+    const max = Math.max(Number(pillRange.min), loaded);
+    const value = pillsTouched
+      ? Math.min(Number(pillRange.value), max) // keep the user's choice, but in range
+      : Math.min(DEFAULT_PILLS, max);
+    if (Number(pillRange.max) === max && Number(pillRange.value) === value) return;
+    pillRange.max = String(max);
+    pillRange.value = String(value);
+    pillVal.textContent = pillRange.value;
+    sendMaxPills();
+  }
+  pillRange.addEventListener("input", () => {
+    pillsTouched = true;
+    pillVal.textContent = pillRange.value;
+    sendMaxPills();
+  });
+
   toggle.addEventListener("click", openMap);
   overlay.querySelector("#willkarte-close").addEventListener("click", (e) => {
     e.preventDefault();
@@ -244,6 +282,7 @@
   });
 
   function setCount(loaded) {
+    setPillMax(loaded);
     const capped = loaded >= MAX_LISTINGS && total && total > MAX_LISTINGS;
     overlay.querySelector("#willkarte-count").textContent =
       "willkarte · " + loaded + (total ? " / " + total : "") + " Inserate" +
@@ -263,6 +302,7 @@
     const d = e.data;
     if (d?.type === "willkarte:ready") {
       iframeReady = true;
+      sendMaxPills();
       sendListings();
       sendSaved();
     }
