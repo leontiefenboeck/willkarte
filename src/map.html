@@ -84,27 +84,42 @@
       .leaflet-popup-content-wrapper {
         border-radius: 12px;
         box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
+        padding: 0; /* the image bleeds to the popup's edges */
+        overflow: hidden; /* so it gets clipped by the rounded corners */
       }
       .leaflet-popup-close-button {
         display: none; /* popups are hover-based; no ✕ needed */
       }
-      .leaflet-popup-content {
-        margin: 12px; /* symmetric — default reserves extra space for the ✕ */
+      .leaflet-popup-tip-container {
+        display: none; /* popups get nudged to stay on screen, so the tip would lie */
       }
+      .leaflet-popup-content {
+        margin: 0;
+        width: auto !important; /* Leaflet hard-codes a width; .wk-pop sets it */
+      }
+      /* Essentially a fixed size — a CSS px is device-independent, so this lands the
+         same apparent size on a 1080p screen and a scaled 4K one. The vw term only
+         bites on a genuinely small window, where 500px would crowd the map out. */
       .wk-pop {
-        width: 280px;
+        width: min(500px, 40vw);
+        position: relative; /* anchors the Merkliste star in the white strip */
+      }
+      /* Fixed height: every popup is the same size, whether or not a listing has an
+         address. The address itself is clipped to one line. */
+      .wk-pop-body {
+        padding: 11px 15px 12px;
+        height: 100px;
+        box-sizing: border-box;
+        overflow: hidden;
       }
 
       /* Image, with the carousel arrows overlaid on it */
       .wk-figure {
         position: relative;
-        margin-bottom: 8px;
       }
       .wk-figure-img {
         display: block;
-        height: 184px;
-        border-radius: 8px;
-        overflow: hidden;
+        height: min(330px, 36vh); /* same idea as the width */
         background: #eee;
       }
       .wk-figure-img a,
@@ -138,65 +153,198 @@
         margin: 0 7px;
       }
       .wk-pop .wk-pop-addr {
-        font-size: 12px;
-        color: #777;
+        font-size: 13.5px;
+        line-height: 1.4;
+        font-weight: 400;
+        color: #7a8291;
         margin-top: 3px;
-      }
-      /* Description: de-emphasised, but still readable. */
-      .wk-pop .wk-pop-title {
-        font-size: 13px;
-        color: #888;
-        margin-top: 4px;
-        max-height: 38px;
+        padding-right: 40px; /* clear of the star */
+        white-space: nowrap; /* one line — willhaben addresses can be very long */
         overflow: hidden;
+        text-overflow: ellipsis;
       }
-      .wk-pop a.wk-open {
-        display: inline-block;
-        margin-top: 8px;
-        color: #d94e00;
-        font-weight: 600;
-        text-decoration: none;
+      /* Description: a caption under a hairline rule, so it reads as a footnote to
+         the listing rather than a third line competing with price and address.
+         One line, ellipsised — headings are long and mostly marketing. */
+      .wk-pop .wk-pop-title {
+        font-size: 12.5px;
+        line-height: 1.4;
+        color: #9aa0ad;
+        margin-top: 9px;
+        padding-top: 8px;
+        border-top: 1px solid #edeff2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
-
-      /* Carousel controls: a short strip across the TOP of the image (paging
-         through the listings at a spot, not the photos of one). */
-      .wk-nav {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 30px;
+      /* Listing bar: pages between several flats at the SAME spot (not photos). */
+      .wk-listings {
         display: flex;
         align-items: center;
         justify-content: space-between;
         padding: 0 6px;
-        border-radius: 8px 8px 0 0;
-        background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0));
+        height: 30px;
+        background: #1f2430;
+        color: #fff;
       }
-      .wk-nav-btn {
-        width: 22px;
-        height: 22px;
+      .wk-listings-label {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.2px;
+      }
+      .wk-listings-btn {
+        width: 24px;
+        height: 24px;
         padding: 0;
         border: none;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.92);
-        color: #222;
-        font-size: 15px;
+        background: transparent;
+        color: #fff;
+        font-size: 16px;
         line-height: 1;
+        cursor: pointer;
+      }
+      .wk-listings-btn:hover {
+        background: rgba(255, 255, 255, 0.16);
+      }
+
+      /* Photo gallery: tabs flush to the image edges — square on the outside,
+         rounded on the inner side, so they read as coming out of the edge. */
+      .wk-shot-btn {
+        position: absolute;
+        top: 50%;
+        width: 24px;
+        height: 46px;
+        padding: 0;
+        border: none;
+        background: rgba(255, 255, 255, 0.94);
+        color: #33383f; /* the chevron: it strokes with currentColor */
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+        transform: translateY(-50%);
+        transition: background 0.12s, width 0.12s;
       }
-      .wk-nav-btn:hover {
+      .wk-shot-btn svg {
+        width: 17px;
+        height: 17px;
+        display: block; /* kill the inline-baseline gap that shifts it down */
+      }
+      .wk-shot-btn:hover {
         background: #fff;
+        width: 28px; /* the tab slides a little further out of the edge */
       }
-      .wk-counter {
+      .wk-shot-prev {
+        left: 0;
+        border-radius: 0 8px 8px 0;
+      }
+      .wk-shot-next {
+        right: 0;
+        border-radius: 8px 0 0 8px;
+      }
+      /* Only one photo: nothing to page through. */
+      .wk-figure.wk-single-shot .wk-shot-btn {
+        display: none;
+      }
+
+      .wk-dots {
+        position: absolute;
+        bottom: 8px;
+        left: 0;
+        right: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        pointer-events: none;
+      }
+      .wk-dot-i {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.55);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+      }
+      .wk-dot-i.is-on {
+        background: #fff;
+        transform: scale(1.15);
+      }
+      /* Merkliste star: in the white strip, on its right, vertically centred against
+         the text. Only rendered when signed in (the body gets "wk-can-save" once
+         willhaben's session is confirmed). */
+      .wk-star-btn {
+        position: absolute;
+        right: 10px;
+        /* Centred in the block above the hairline (price + address): the body is
+           100px tall and the rule sits ~64px down from its top. */
+        bottom: 50px;
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        border: none;
+        border-radius: 50%;
+        background: #fff;
+        border: 1px solid rgba(0, 0, 0, 0.14); /* always reads as a button */
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+        color: #7a8291;
+        cursor: pointer;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.12s, border-color 0.12s, color 0.12s, transform 0.12s;
+      }
+      body.wk-can-save .wk-star-btn {
+        display: flex;
+      }
+      .wk-star-btn svg {
+        width: 22px;
+        height: 22px;
+        display: block;
+        fill: none; /* outline until saved */
+      }
+      .wk-star-btn:hover {
+        background: #f5f6f8;
+        border-color: rgba(0, 0, 0, 0.26);
+        color: #33383f;
+        transform: scale(1.06);
+      }
+      .wk-star-btn.is-saved,
+      .wk-star-btn.is-saved:hover {
+        color: #f5a623;
+        border-color: #f5a623;
+      }
+      .wk-star-btn.is-saved svg {
+        fill: #f5a623;
+      }
+
+      /* A pill on the Merkliste: gold edge, warm fill, gold price. No icon — colour
+         alone marks it, which keeps the pill the same size as every other one. */
+      .wk-price.is-saved {
+        background: #fff8ea;
+        border-color: #f5a623;
+        color: #b06f00;
+        box-shadow: 0 1px 2px rgba(180, 120, 0, 0.2), 0 2px 8px rgba(180, 120, 0, 0.16);
+      }
+      .wk-price.is-saved:hover {
+        background: #f5a623;
+        border-color: #f5a623;
+        color: #fff;
+      }
+      .wk-price.is-saved .wk-more {
+        color: #b06f00;
+      }
+      .wk-price.is-saved:hover .wk-more {
+        color: #fff;
+      }
+
+      /* Too many photos for dots — a counter instead. */
+      .wk-dots-count {
         color: #fff;
         font-size: 11px;
         font-weight: 600;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
       }
 
       #wk-empty {

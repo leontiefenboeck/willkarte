@@ -103,14 +103,41 @@
     return (a.priceNum == null ? Infinity : a.priceNum) - (b.priceNum == null ? Infinity : b.priceNum);
   }
 
-  // ---- Popup content ----------------------------------------------------
-  function imageInner(l) {
-    if (!l.thumb) return "";
-    const img = '<img src="' + esc(l.thumb) + '" loading="lazy" alt="">';
-    return l.url
-      ? '<a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + img + "</a>"
-      : img;
+  // ---- Merkliste state (mirrors willhaben's, kept by the content script) --
+  let savedIds = new Set();
+  let canSave = false; // false when signed out — then no stars at all
+  // Elements whose "is-saved" class follows the Merkliste. A group pill watches
+  // every flat at its spot (it shows a star if any of them is saved), a single
+  // pill or a popup star watches just one.
+  let starTargets = [];
+
+  function isSaved(l) {
+    return savedIds.has(String(l.id));
   }
+  function trackStar(el, flats) {
+    const ids = flats.map((l) => String(l.id));
+    starTargets.push({ el, ids });
+    el.classList.toggle("is-saved", ids.some((id) => savedIds.has(id)));
+  }
+  function paintStars() {
+    starTargets = starTargets.filter((t) => t.el.isConnected); // drop removed markers
+    for (const t of starTargets)
+      t.el.classList.toggle("is-saved", t.ids.some((id) => savedIds.has(id)));
+  }
+  // Optimistic: flip the star now, and ask the content script to do the real call.
+  // It always answers with the true state, so a failure snaps the star back.
+  function toggleSaved(l) {
+    const want = !isSaved(l);
+    if (want) savedIds.add(String(l.id));
+    else savedIds.delete(String(l.id));
+    paintStars();
+    parent.postMessage({ type: "willkarte:save", id: l.id, save: want }, "*");
+  }
+
+  // ---- Popup content ----------------------------------------------------
+  // One builder for both cases: a photo gallery of the current listing (‹ › on the
+  // image edges + progress dots), and — when several flats share the spot — a bar
+  // above the image to page between the listings themselves.
   function detailsHtml(l) {
     const specs = [
       parseFloat(l.rooms) > 0 ? l.rooms + " Zi." : null,
@@ -122,65 +149,141 @@
         (specs ? '<span class="wk-pop-specs">' + esc(specs) + "</span>" : "") +
       "</div>" +
       (l.address ? '<div class="wk-pop-addr">' + esc(l.address) + "</div>" : "") +
-      (l.title ? '<div class="wk-pop-title">' + esc(l.title) + "</div>" : "") +
-      (l.url
-        ? '<a class="wk-open" href="' + esc(l.url) + '" target="_blank" rel="noopener">Auf willhaben öffnen →</a>'
-        : "")
-    );
-  }
-  function popupOneHtml(l) {
-    return (
-      '<div class="wk-pop"><div class="wk-figure"><div class="wk-figure-img">' +
-      imageInner(l) + "</div></div>" + detailsHtml(l) + "</div>"
+      (l.title ? '<div class="wk-pop-title">' + esc(l.title) + "</div>" : "")
     );
   }
 
-  function navButton(glyph) {
+  function navButton(glyph, cls) {
     const b = document.createElement("button");
     b.type = "button";
-    b.className = "wk-nav-btn";
+    b.className = cls;
     b.textContent = glyph;
     return b;
   }
+  // Star for the Merkliste: outline when not saved, filled when saved (the CSS
+  // swaps them on "is-saved"), same shape either way.
+  const STAR_PATH =
+    "M11 2.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8L11 15.9l-5.2 2.7 1-5.8L2.6 8.7l5.8-.8z";
+  function starButton() {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "wk-star-btn";
+    b.title = "Auf die Merkliste";
+    b.innerHTML =
+      '<svg viewBox="0 0 22 22" aria-hidden="true"><path d="' + STAR_PATH + '" ' +
+      'stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+    return b;
+  }
 
-  // Carousel popup for a group of coincident flats: a short control strip across
-  // the top of the image lets you page through the listings at that spot.
-  function groupPopupEl(unit) {
+  // The photo arrows use an SVG chevron, not a "‹" glyph: text arrows sit on the
+  // baseline (never optically centred in a circle) and their size varies by font.
+  function chevronButton(dir, cls) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = cls;
+    const d = dir < 0 ? "M14.5 4.5 8 11l6.5 6.5" : "M7.5 4.5 14 11l-6.5 6.5";
+    b.innerHTML =
+      '<svg viewBox="0 0 22 22" aria-hidden="true"><path d="' + d + '" fill="none" ' +
+      'stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    return b;
+  }
+  // Arrow clicks must not bubble: the image is a link to the ad, and the pill
+  // itself opens the ad on click.
+  function onNav(btn, fn) {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      fn();
+    });
+  }
+  const MAX_DOTS = 10; // beyond this, show "i / n" instead of a dot per photo
+
+  function popupEl(flats) {
     const el = document.createElement("div");
     el.className = "wk-pop";
-    let idx = 0;
+    let flat = 0; // which listing at this spot
+    let shot = 0; // which photo of that listing
+
+    // Listing bar (only when the spot holds several flats).
+    if (flats.length > 1) {
+      const bar = document.createElement("div");
+      bar.className = "wk-listings";
+      const prev = navButton("‹", "wk-listings-btn");
+      const next = navButton("›", "wk-listings-btn");
+      const label = document.createElement("span");
+      label.className = "wk-listings-label";
+      onNav(prev, () => goFlat(-1));
+      onNav(next, () => goFlat(1));
+      bar.append(prev, label, next);
+      el.append(bar);
+      el._label = label;
+    }
 
     const figure = document.createElement("div");
     figure.className = "wk-figure";
     const imgBox = document.createElement("div");
     imgBox.className = "wk-figure-img";
-    const nav = document.createElement("div");
-    nav.className = "wk-nav";
-    const prev = navButton("‹");
-    const next = navButton("›");
-    const counter = document.createElement("span");
-    counter.className = "wk-counter";
-    nav.append(prev, counter, next);
-    figure.append(imgBox, nav);
+    const back = chevronButton(-1, "wk-shot-btn wk-shot-prev");
+    const fwd = chevronButton(1, "wk-shot-btn wk-shot-next");
+    const dots = document.createElement("div");
+    dots.className = "wk-dots";
+    onNav(back, () => goShot(-1));
+    onNav(fwd, () => goShot(1));
+    figure.append(imgBox, back, fwd, dots);
 
-    const details = document.createElement("div");
-    el.append(figure, details);
+    const body = document.createElement("div");
+    body.className = "wk-pop-body";
+    // The star lives in the white strip, bottom-right. It's a sibling of the body,
+    // not a child, because the body's innerHTML is rewritten on every flat change.
+    const star = starButton();
+    onNav(star, () => toggleSaved(flats[flat]));
+    el.append(figure, body, star);
 
-    function show() {
-      const l = unit.flats[idx];
-      imgBox.innerHTML = imageInner(l);
-      details.innerHTML = detailsHtml(l);
-      counter.textContent = idx + 1 + " / " + unit.flats.length;
+    function renderPhoto() {
+      const l = flats[flat];
+      const src = l.images[shot];
+      const img = src ? '<img src="' + esc(src) + '" alt="">' : "";
+      imgBox.innerHTML = l.url
+        ? '<a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + img + "</a>"
+        : img;
+
+      const n = l.images.length;
+      figure.classList.toggle("wk-single-shot", n < 2);
+      if (n < 2) dots.innerHTML = "";
+      else if (n <= MAX_DOTS) {
+        dots.className = "wk-dots";
+        dots.innerHTML = "";
+        for (let i = 0; i < n; i++) {
+          const d = document.createElement("span");
+          d.className = "wk-dot-i" + (i === shot ? " is-on" : "");
+          dots.append(d);
+        }
+      } else {
+        dots.className = "wk-dots wk-dots-count";
+        dots.textContent = shot + 1 + " / " + n;
+      }
     }
-    function go(step, e) {
-      e.preventDefault();
-      e.stopPropagation();
-      idx = (idx + step + unit.flats.length) % unit.flats.length;
-      show();
+    function renderFlat() {
+      shot = 0;
+      body.innerHTML = detailsHtml(flats[flat]);
+      if (el._label) el._label.textContent = "Wohnung " + (flat + 1) + " von " + flats.length;
+      // The one star button follows whichever flat is on show.
+      starTargets = starTargets.filter((t) => t.el !== star);
+      trackStar(star, [flats[flat]]);
+      renderPhoto();
     }
-    prev.addEventListener("click", (e) => go(-1, e));
-    next.addEventListener("click", (e) => go(1, e));
-    show();
+    function goShot(step) {
+      const n = flats[flat].images.length;
+      if (n < 2) return;
+      shot = (shot + step + n) % n;
+      renderPhoto();
+    }
+    function goFlat(step) {
+      flat = (flat + step + flats.length) % flats.length;
+      renderFlat();
+    }
+
+    renderFlat();
     return el;
   }
 
@@ -196,6 +299,71 @@
     cancelClose();
     popupTimer = setTimeout(() => map.closePopup(), 240);
   }
+  // Placement: Leaflet always draws a popup above the marker, which clips near the
+  // top edge. Instead we pick a side (above / below / left / right) that (a) fits in
+  // the viewport and (b) never covers the pill itself, preferring the side that
+  // points towards the map centre — so the popup grows inwards, not off-screen.
+  // Done by measuring the popup at offset (0,0) and then setting the offset that
+  // moves it to the chosen rectangle (Leaflet positions from options.offset).
+  const POPUP_GAP = 10; // px between pill and popup
+  const POPUP_PAD = 12; // min px between popup and map edge
+  function fitPopup(popup) {
+    if (!popup || !popup.isOpen()) return;
+    const el = popup.getElement();
+    const src = popup._source;
+    const pin = src && src.getElement() && src.getElement().querySelector(".wk-price");
+    if (!el || !pin) return;
+
+    popup.options.offset = L.point(0, 0);
+    popup._updatePosition();
+
+    const box = map.getContainer().getBoundingClientRect();
+    const nat = el.getBoundingClientRect(); // natural (offset-free) position
+    const m = pin.getBoundingClientRect(); // the pill we must not cover
+    const w = nat.width;
+    const h = nat.height;
+    const cx = (m.left + m.right) / 2;
+    const cy = (m.top + m.bottom) / 2;
+    const minX = box.left + POPUP_PAD;
+    const maxX = box.right - POPUP_PAD - w;
+    const minY = box.top + POPUP_PAD;
+    const maxY = box.bottom - POPUP_PAD - h;
+    const clamp = (v, lo, hi) => (lo > hi ? lo : Math.min(Math.max(v, lo), hi));
+
+    // Candidate rects: fixed on the placement axis, clamped on the other one (so
+    // clamping slides the popup along the pill, never on top of it).
+    const cands = [
+      { x: clamp(cx - w / 2, minX, maxX), y: m.top - POPUP_GAP - h, ok: m.top - POPUP_GAP - h >= minY },
+      { x: clamp(cx - w / 2, minX, maxX), y: m.bottom + POPUP_GAP, ok: m.bottom + POPUP_GAP <= maxY },
+      { x: m.left - POPUP_GAP - w, y: clamp(cy - h / 2, minY, maxY), ok: m.left - POPUP_GAP - w >= minX },
+      { x: m.right + POPUP_GAP, y: clamp(cy - h / 2, minY, maxY), ok: m.right + POPUP_GAP <= maxX },
+    ];
+    // Prefer the placement whose popup centre lands closest to the map centre.
+    const mx = (box.left + box.right) / 2;
+    const my = (box.top + box.bottom) / 2;
+    const score = (c) => Math.hypot(c.x + w / 2 - mx, c.y + h / 2 - my);
+    const fits = cands.filter((c) => c.ok);
+    const pick = (fits.length ? fits : [{ x: clamp(cx - w / 2, minX, maxX), y: clamp(m.bottom + POPUP_GAP, minY, maxY) }])
+      .sort((a, b) => score(a) - score(b))[0];
+
+    popup.options.offset = L.point(pick.x - nat.left, pick.y - nat.top);
+    popup._updatePosition();
+  }
+  map.on("popupopen", (e) => {
+    fitPopup(e.popup);
+    // The image loads late and grows the popup upwards — re-fit when it arrives.
+    const node = e.popup.getElement();
+    if (node) {
+      node.querySelectorAll("img").forEach((img) => {
+        if (!img.complete) img.addEventListener("load", () => fitPopup(e.popup), { once: true });
+      });
+    }
+  });
+  map.on("move zoom", () => {
+    const p = map._popup;
+    if (p) fitPopup(p);
+  });
+
   function attachHoverPopup(marker) {
     // Attach to the visible pill element itself (not the Leaflet marker, whose
     // hit-target is the whole container). mouseenter/leave fire on the pill's
@@ -225,23 +393,25 @@
     return L.divIcon({ className: "wk-pin", html, iconSize: null, iconAnchor: [0, 0] });
   }
 
+  // A pill on the Merkliste carries "is-saved" and the CSS recolours it (gold);
+  // no icon — a star glyph crowds a pill this small.
   function pricePillMarker(l) {
     const m = L.marker([l.lat, l.lng], {
       icon: pill('<div class="wk-price">' + esc(l.priceLabel) + "</div>"),
       riseOnHover: true,
     });
-    m.bindPopup(popupOneHtml(l), { minWidth: 220, autoPan: false });
+    m.bindPopup(popupEl([l]), { minWidth: 320, maxWidth: 520, autoPan: false });
     attachHoverPopup(m);
-    // Clicking the pill opens the willhaben ad, same as clicking the image.
-    if (l.url) {
-      m.on("add", () => {
-        const el = m.getElement() && m.getElement().querySelector(".wk-price");
-        if (el) {
-          el.style.cursor = "pointer";
-          el.addEventListener("click", () => window.open(l.url, "_blank", "noopener"));
-        }
-      });
-    }
+    m.on("add", () => {
+      const el = m.getElement() && m.getElement().querySelector(".wk-price");
+      if (!el) return;
+      trackStar(el, [l]);
+      // Clicking the pill opens the willhaben ad, same as clicking the image.
+      if (l.url) {
+        el.style.cursor = "pointer";
+        el.addEventListener("click", () => window.open(l.url, "_blank", "noopener"));
+      }
+    });
     return m;
   }
 
@@ -253,8 +423,13 @@
       '<span class="wk-more">+' + (unit.n - 1) + "</span>" +
       "</div>";
     const m = L.marker([unit.lat, unit.lng], { icon: pill(html), riseOnHover: true });
-    m.bindPopup(groupPopupEl(unit), { minWidth: 220, autoPan: false });
+    m.bindPopup(popupEl(unit.flats), { minWidth: 320, maxWidth: 520, autoPan: false });
     attachHoverPopup(m);
+    // A group pill stars if any flat at that spot is on the Merkliste.
+    m.on("add", () => {
+      const el = m.getElement() && m.getElement().querySelector(".wk-price");
+      if (el) trackStar(el, unit.flats);
+    });
     return m;
   }
 
@@ -308,14 +483,31 @@
     const leftovers = [];
     let pills = 0;
 
+    const marker = (u) => () => (u.n > 1 ? groupMarker(u) : pricePillMarker(u.flats[0]));
+
+    // Merkliste units first: they always get a pill — never demoted to a dot by the
+    // MAX_PILLS cap or the spacing grid — so a starred flat can't hide at any zoom.
+    // Their key is the listing id, not the cell, so it survives a zoom change.
     for (const u of units) {
+      if (!u.flats.some(isSaved)) continue;
+      if (!bounds.contains([u.lat, u.lng])) continue;
+      const p = map.project([u.lat, u.lng], zoom);
+      const cell = Math.round(p.x / PILL_CELL) + "_" + Math.round(p.y / PILL_CELL);
+      pillCells.add(cell);
+      // If it's already on screen as a normal pill, keep that key: the reconciler
+      // then leaves the marker (and its open popup) alone when you star it.
+      desired.set(shown.has("p:" + cell) ? "p:" + cell : "s:" + u.flats[0].id, marker(u));
+    }
+
+    for (const u of units) {
+      if (u.flats.some(isSaved)) continue; // already pinned above
       if (!bounds.contains([u.lat, u.lng])) continue;
       const p = map.project([u.lat, u.lng], zoom);
       const cell = Math.round(p.x / PILL_CELL) + "_" + Math.round(p.y / PILL_CELL);
       if (pills < MAX_PILLS && !pillCells.has(cell)) {
         pillCells.add(cell);
         pills++;
-        desired.set("p:" + cell, () => (u.n > 1 ? groupMarker(u) : pricePillMarker(u.flats[0])));
+        desired.set("p:" + cell, marker(u));
       } else {
         leftovers.push({ u, p });
       }
@@ -381,6 +573,13 @@
     const d = e.data;
     if (!d) return;
     if (d.type === "willkarte:listings") render(d.listings, d.loadId);
+    if (d.type === "willkarte:saved") {
+      savedIds = new Set((d.ids || []).map(String));
+      canSave = !!d.canSave; // signed out: no star button at all
+      document.body.classList.toggle("wk-can-save", canSave);
+      paintStars();
+      updateVisible(); // a newly starred flat gets promoted from dot to pill
+    }
     if (d.type === "willkarte:show")
       setTimeout(() => {
         map.invalidateSize();
