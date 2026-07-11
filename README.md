@@ -4,11 +4,16 @@ Immobilien-Inserate von willhaben.at auf einer Karte.
 
 Filter wie gewohnt auf willhaben setzen, dann auf **🗺 Karte** klicken — jede Wohnung
 bzw. jedes Haus aus der Suche erscheint als Preis-Pin auf einer interaktiven Karte.
+
+![Alle Inserate der Suche als Preis-Pins auf der Karte](screenshots/uebersicht.png)
+
 Beim Darüberfahren öffnet sich ein Vorschaufenster mit Fotos, Größe, Zimmern und
-Adresse; ein Klick führt direkt zum Inserat. Inserate auf der Merkliste sind mit
-einem ★ markiert, und über den Stern im Vorschaufenster lassen sich Inserate direkt
-von der Karte aus zur Merkliste hinzufügen oder entfernen (dafür muss man bei
-willhaben angemeldet sein).
+Adresse; ein Klick führt direkt zum Inserat. Über den Stern lassen sich Inserate
+direkt von der Karte aus zur Merkliste hinzufügen oder entfernen (dafür muss man bei
+willhaben angemeldet sein); gemerkte Inserate sind auf der Karte goldfarben markiert
+und werden immer angezeigt.
+
+![Vorschaufenster mit Fotogalerie, Preis, Größe, Adresse und Merkliste-Stern](screenshots/vorschau.png)
 
 ## Hinweis zur Genauigkeit der Positionen
 
