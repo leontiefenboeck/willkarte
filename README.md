@@ -16,33 +16,27 @@ willhaben angemeldet sein); gemerkte Inserate sind auf der Karte goldfarben mark
 
 ## Installation
 
-Diesen Ordner als Zip donwloaden und entpacken oder Repo clonen. Dann je nach Browser:
-
 ### Chromium-based (Chrome, Edge, Brave...)
+
+**`willkarte-chromium.zip`** aus den [**Releases**](../../releases/latest) herunterladen
+und entpacken (oder das Repo clonen). Dann:
 
 1. `chrome://extensions` öffnen
 2. **Entwicklermodus** aktivieren (rechts oben)
-3. Auf **Entpackte Erweiterung laden** klicken und den Ordner **`willkarte-chromium`** auswählen
+3. Auf **Entpackte Erweiterung laden** klicken und den entpackten Ordner **`willkarte-chromium`** auswählen
 
 ### Firefox
 
-**Am einfachsten** über den offiziellen Firefox-Add-ons-Store — dort ist die
-Erweiterung signiert und installiert sich dauerhaft in jeder Firefox-Version, ohne
-weitere Einstellungen:
+**`willkarte-firefox.xpi`**-Datei aus den [**Releases**](../../releases/latest) herunterladen.
 
-👉 **[willkarte auf addons.mozilla.org](https://addons.mozilla.org/firefox/addon/willkarte/)**
+Am einfachsten die Datei dann direkt **in ein Firefox-Fenster ziehen** — Firefox fragt
+sofort, ob das Add-on installiert werden soll.
 
-<details>
-<summary>Alternativ: die <code>.xpi</code>-Datei manuell installieren</summary>
-
-Funktioniert nur, wenn in `about:config` der Wert `xpinstall.signatures.required`
-auf `false` gesetzt ist (möglich in ESR-, Nightly- oder Developer-Versionen).
+Alternativ über das Menü:
 
 1. `about:addons` öffnen
 2. ⚙️ → **Add-on aus Datei installieren…**
-3. **`willkarte-firefox.xpi`** auswählen
-
-</details>
+3. die heruntergeladene **`willkarte-firefox.xpi`** auswählen
 
 ---
 

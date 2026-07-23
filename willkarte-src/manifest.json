@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "willkarte",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Shows willhaben.at real estate search results on an interactive map with price markers.",
   "host_permissions": ["https://www.willhaben.at/*"],
   "content_scripts": [
