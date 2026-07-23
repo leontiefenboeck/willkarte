@@ -10,21 +10,20 @@
 (function () {
   "use strict";
 
-  if (window.__willkarteLoaded) return; // guard against double-injection
+  if (window.__willkarteLoaded) return;
   window.__willkarteLoaded = true;
 
   const api = typeof browser !== "undefined" ? browser : chrome;
 
-  // How many listings to pull. Searches can have thousands; we cap for
-  // politeness and performance (the map handles this many comfortably).
+  // Searches can have thousands of hits; cap for politeness/performance.
   const MAX_LISTINGS = 1000;
   const ROWS_PER_PAGE = 100; // requested page size (willhaben may cap it lower)
   const MAX_PAGES = 40; // hard safety bound on number of requests
   const DEFAULT_PILLS = 50; // price pills shown at once (slider in the top bar)
   const PAGE_DELAY_MS = 200; // pause between requests
 
-  // Load state. A fresh load starts each time the map is opened; `loadGen`
-  // supersedes any load still running if you re-open before it finished.
+  // Load state. A fresh load starts on each map open; `loadGen` supersedes any
+  // load still running if you re-open before it finished.
   let current = []; // listings collected so far
   let byId = new Map(); // de-dupes across pages
   let total = null; // full hit count for the current filters
@@ -96,20 +95,17 @@
   }
 
   // ---- Merkliste (willhaben's own "Anzeige merken") ---------------------
-  // The saved state is NOT in the search JSON — willhaben's own page fetches it
-  // from its BFF at /webapi with the session cookie, and so do we (the content
-  // script runs on willhaben.at, so the cookies ride along):
-  //   GET    /webapi/iad/userfolders/all/{loginId}  -> { adIds: [{ adId }, ...] }
-  //   GET    /webapi/iad/userfolders/{loginId}      -> { advertFolders: [{ id, name }] }
-  //   POST   /webapi/iad/userfolders/save/{loginId}/{folderId}/{adId}
-  //   DELETE /webapi/iad/userfolders/savedAd/{loginId}/{adId}
-  // Their client sends an X-WH-Client header on every call, and a CSRF token
-  // (echoing the x-bbx-csrf-token cookie back as a header) on anything but a GET —
-  // without those the BFF rejects the request.
-  // `loginId` sits in the page's own __NEXT_DATA__ when signed in; signed out it's
-  // absent and the map simply shows no stars.
-  // Absolute, not "/webapi/…": in Firefox a content-script fetch runs with the
-  // extension's principal, so a relative URL has no page origin to resolve against.
+  // Saved state isn't in the search JSON; it lives in willhaben's BFF at /webapi.
+  // We call it with the session cookie (this script runs on willhaben.at):
+  //   GET    /iad/userfolders/all/{loginId}  -> { adIds: [{ adId }, ...] }
+  //   GET    /iad/userfolders/{loginId}      -> { advertFolders: [{ id, name }] }
+  //   POST   /iad/userfolders/save/{loginId}/{folderId}/{adId}
+  //   DELETE /iad/userfolders/savedAd/{loginId}/{adId}
+  // Headers: X-WH-Client on every call, and a CSRF token (the x-bbx-csrf-token
+  // cookie echoed back as a header) on non-GETs — without them the BFF rejects.
+  // `loginId` is in __NEXT_DATA__ when signed in; absent ⇒ no stars.
+  // URL must be absolute: a Firefox content-script fetch has no page origin to
+  // resolve "/webapi/…" against.
   const API = "https://www.willhaben.at/webapi";
   const CSRF = "x-bbx-csrf-token";
   const loginId = (() => {
@@ -215,39 +211,34 @@
   function openMap() {
     overlay.classList.add("willkarte-open");
     toggle.style.display = "none";
-    // Push a history entry so the browser's back button closes the map
-    // instead of navigating willhaben away. Tagged so we know it's ours.
+    // A tagged history entry so the back button closes the map instead of
+    // navigating willhaben away.
     if (!(history.state && history.state.willkarte)) {
       history.pushState({ willkarte: true }, "");
     }
     startLoading(); // (re)load the current search each time the map opens
     post({ type: "willkarte:show" }); // the map was sized while hidden — recalc
   }
-  // hideMap: just tear down the overlay (no history change).
   function hideMap() {
     overlay.classList.remove("willkarte-open");
     toggle.style.display = "";
   }
-  // closeMap: user-initiated close (button/Escape). Pop our history entry,
-  // which fires popstate → hideMap. If our entry isn't on top (shouldn't
-  // happen), hide directly.
+  // User-initiated close (button/Escape): pop our history entry, which fires
+  // popstate → hideMap. If it's not on top (shouldn't happen), hide directly.
   function closeMap() {
     if (history.state && history.state.willkarte) history.back();
     else hideMap();
   }
 
-  // How many price pills the map draws at once. Lives here (not in the map) so the
-  // control can sit in the top bar; the map is told on every change and on ready.
-  // The maximum is the number of loaded listings, i.e. "show them all" — past what
-  // fits without overlapping, the map stops spacing them and just draws them.
+  // Pill count lives here (not the map) so the slider can sit in the top bar; the
+  // map is told on every change and on ready. Max = loaded count ("show them all").
   const pillRange = overlay.querySelector("#willkarte-pills-range");
   const pillVal = overlay.querySelector("#willkarte-pills-val");
   function sendMaxPills() {
     post({ type: "willkarte:maxpills", n: Number(pillRange.value) });
   }
-  // Called as listings stream in: the ceiling is the result count ("show them all"),
-  // and until the user touches the slider its value is DERIVED from that count — so a
-  // search with 3 hits shows 3, not a meaningless "50 of 3".
+  // As listings stream in the ceiling is the result count, and until the user
+  // touches the slider the value derives from it — so 3 hits show 3, not "50 of 3".
   let pillsTouched = false;
   function setPillMax(loaded) {
     const max = Math.max(Number(pillRange.min), loaded);
@@ -275,8 +266,7 @@
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && overlay.classList.contains("willkarte-open")) closeMap();
   });
-  // Browser back button: if the map is open, close it (consuming the entry
-  // we pushed on open) rather than letting willhaben navigate.
+  // Back button while the map is open: close it (consuming our pushed entry).
   window.addEventListener("popstate", () => {
     if (overlay.classList.contains("willkarte-open")) hideMap();
   });

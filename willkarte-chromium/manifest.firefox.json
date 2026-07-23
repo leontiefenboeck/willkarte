@@ -7,7 +7,10 @@
   "description": "Shows willhaben.at real estate search results on an interactive map with price markers.",
   "browser_specific_settings": {
     "gecko": {
-      "id": "willkarte@leont.dev"
+      "id": "willkarte@leotief.dev",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
     }
   },
   "permissions": ["https://www.willhaben.at/*"],

@@ -3,28 +3,26 @@
 // Airbnb-style price pills on a Leaflet + MapLibre (vector) map.
 //
 // Display model:
-//  - Flats at (almost) the exact same spot are merged into a "unit". A unit with
-//    one flat shows its price; a unit with several shows the cheapest price plus a
-//    "+N" badge, and its popup has ‹ › arrows to page through the flats there.
-//    Merging uses a fixed real-world threshold (projected at COINCIDE_ZOOM), so it
-//    only merges flats genuinely on top of each other — never ones that separate
-//    as you zoom in.
-//  - A slider-controlled number of price pills is drawn, placed greedily from the
-//    middle of the view outwards; they don't overlap until you ask for more than fit.
-//  - Units that don't get a pill are hinted with small empty "density dots".
-//  - Popups open on HOVER (with a short close delay so you can reach them).
-//  - The view is recomputed on pan/zoom (reconciled, so open popups survive).
+//  - Flats at (almost) the same spot merge into a "unit": one flat shows its
+//    price, several show the cheapest + a "+N" badge with ‹ › arrows in the popup.
+//    The merge threshold is fixed real-world distance (projected at COINCIDE_ZOOM),
+//    so it never merges flats that separate as you zoom in.
+//  - A slider-controlled number of pills is placed greedily from the view centre
+//    outwards; they don't overlap until you ask for more than fit.
+//  - Units without a pill are hinted with small empty "density dots".
+//  - Popups open on HOVER (short close delay so you can reach them).
+//  - The view is reconciled on pan/zoom, so open popups survive.
 
 (function () {
   "use strict";
 
   const AUSTRIA = [47.6, 13.3];
-  // Min gap between two price pill centres (screen px). A pill is ~80x23 px, so the
-  // separation is rectangular: pills may stack tightly in rows but never side-swipe.
+  // Min gap between pill centres (screen px), rectangular: pills stack tightly in
+  // rows but never side-swipe.
   const PILL_W = 86;
   const PILL_H = 30;
-  // Cap on price pills at once — driven by the slider in the overlay's top bar. Past
-  // what fits collision-free, the extra pills are drawn overlapping rather than dropped.
+  // Pill cap, driven by the top-bar slider. Past what fits collision-free the extras
+  // are drawn overlapping rather than dropped.
   let maxPills = 50;
   const DOT_CELL = 46; // coarse grid for density dots (screen px)
   const COINCIDE_ZOOM = 18; // reference zoom for "same spot" test
@@ -32,8 +30,8 @@
 
   const map = L.map("map", { zoomControl: true, attributionControl: false }).setView(AUSTRIA, 7);
 
-  // A pane for the density dots, sitting below the default marker pane (600) so
-  // dots always render beneath the price pills, never on top of a listing.
+  // Density-dot pane below the default marker pane (600), so dots always render
+  // beneath the price pills.
   map.createPane("wkDots");
   map.getPane("wkDots").style.zIndex = 550;
 
@@ -75,10 +73,9 @@
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
 
-    // If the vector engine can't run (e.g. Chrome under Manifest V3 blocks
-    // MapLibre's web worker via CSP) it fires an error before it ever renders —
-    // fall back to raster then. A slow load is NOT an error, so this leaves a
-    // working (or still-loading) vector map alone.
+    // If the vector engine can't run (e.g. a CSP blocking MapLibre's worker) it
+    // errors before rendering — fall back to raster. A slow load is NOT an error,
+    // so a working/still-loading vector map is left alone.
     const glMap = gl.getMaplibreMap && gl.getMaplibreMap();
     if (glMap) {
       glMap.on("error", (ev) => {
@@ -140,9 +137,8 @@
   }
 
   // ---- Popup content ----------------------------------------------------
-  // One builder for both cases: a photo gallery of the current listing (‹ › on the
-  // image edges + progress dots), and — when several flats share the spot — a bar
-  // above the image to page between the listings themselves.
+  // One builder for both cases: a photo gallery of the current listing, plus — when
+  // several flats share the spot — a bar above the image to page between listings.
   function detailsHtml(l) {
     const specs = [
       parseFloat(l.rooms) > 0 ? l.rooms + " Zi." : null,
@@ -165,6 +161,18 @@
     b.textContent = glyph;
     return b;
   }
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  function iconSvg(d, extraPathAttrs) {
+    const svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("viewBox", "0 0 22 22");
+    svg.setAttribute("aria-hidden", "true");
+    const path = document.createElementNS(SVG_NS, "path");
+    path.setAttribute("d", d);
+    for (const k in extraPathAttrs) path.setAttribute(k, extraPathAttrs[k]);
+    svg.append(path);
+    return svg;
+  }
+
   // Star for the Merkliste: outline when not saved, filled when saved (the CSS
   // swaps them on "is-saved"), same shape either way.
   const STAR_PATH =
@@ -174,9 +182,9 @@
     b.type = "button";
     b.className = "wk-star-btn";
     b.title = "Auf die Merkliste";
-    b.innerHTML =
-      '<svg viewBox="0 0 22 22" aria-hidden="true"><path d="' + STAR_PATH + '" ' +
-      'stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+    b.append(iconSvg(STAR_PATH, {
+      stroke: "currentColor", "stroke-width": "1.6", "stroke-linejoin": "round",
+    }));
     return b;
   }
 
@@ -187,9 +195,10 @@
     b.type = "button";
     b.className = cls;
     const d = dir < 0 ? "M14.5 4.5 8 11l6.5 6.5" : "M7.5 4.5 14 11l-6.5 6.5";
-    b.innerHTML =
-      '<svg viewBox="0 0 22 22" aria-hidden="true"><path d="' + d + '" fill="none" ' +
-      'stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    b.append(iconSvg(d, {
+      fill: "none", stroke: "currentColor", "stroke-width": "2.4",
+      "stroke-linecap": "round", "stroke-linejoin": "round",
+    }));
     return b;
   }
   // Arrow clicks must not bubble: the image is a link to the ad, and the pill
@@ -304,12 +313,10 @@
     cancelClose();
     popupTimer = setTimeout(() => map.closePopup(), 240);
   }
-  // Placement: Leaflet always draws a popup above the marker, which clips near the
-  // top edge. Instead we pick a side (above / below / left / right) that (a) fits in
-  // the viewport and (b) never covers the pill itself, preferring the side that
-  // points towards the map centre — so the popup grows inwards, not off-screen.
-  // Done by measuring the popup at offset (0,0) and then setting the offset that
-  // moves it to the chosen rectangle (Leaflet positions from options.offset).
+  // Leaflet always draws popups above the marker, which clips near the top edge.
+  // Instead pick a side (above/below/left/right) that fits the viewport and never
+  // covers the pill, preferring the one towards the map centre so it grows inwards.
+  // Measure at offset (0,0), then set the offset that moves it to the chosen rect.
   const POPUP_GAP = 10; // px between pill and popup
   const POPUP_PAD = 12; // min px between popup and map edge
   function fitPopup(popup) {
@@ -370,9 +377,8 @@
   });
 
   function attachHoverPopup(marker) {
-    // Attach to the visible pill element itself (not the Leaflet marker, whose
-    // hit-target is the whole container). mouseenter/leave fire on the pill's
-    // real rendered shape, so the popup opens only when the cursor is on the pill.
+    // Listen on the pill element, not the Leaflet marker (whose hit-target is the
+    // whole container) — so the popup opens only when the cursor is on the pill.
     marker.on("add", () => {
       const root = marker.getElement();
       const el = root && root.querySelector(".wk-price");
@@ -487,34 +493,32 @@
     const leftovers = [];
 
     const marker = (u) => () => (u.n > 1 ? groupMarker(u) : pricePillMarker(u.flats[0]));
-    // Pills are placed greedily and must not collide: a candidate is rejected if its
-    // centre lands inside the PILL_W x PILL_H box of one already placed.
+    // Greedy placement: reject a candidate whose centre lands in the PILL_W x PILL_H
+    // box of one already placed.
     const placed = [];
     const collides = (p) =>
       placed.some((q) => Math.abs(p.x - q.x) < PILL_W && Math.abs(p.y - q.y) < PILL_H);
-    // Reconciliation key: the pill's position rounded to a PILL_W x PILL_H grid. It's
-    // absolute (not viewport-relative), so it survives a pan and the open popup with
-    // it. Two non-colliding pills can never round to the same cell, so keys are unique.
+    // Reconciliation key: pill position rounded to a PILL_W x PILL_H grid. Absolute
+    // (not viewport-relative), so it survives a pan; non-colliding pills never share
+    // a cell, so keys are unique.
     const cellKey = (p) => Math.round(p.x / PILL_W) + "_" + Math.round(p.y / PILL_H);
 
-    // Merkliste units first: they always get a pill — never demoted to a dot by the
-    // pill cap or by a collision — so a starred flat can't hide at any zoom.
-    // Their key is the listing id, not the cell, so it survives a zoom change.
+    // Merkliste units first: always a pill, never demoted by the cap or a collision,
+    // so a starred flat can't hide at any zoom. Keyed by listing id (survives a zoom).
     for (const u of units) {
       if (!u.flats.some(isSaved)) continue;
       if (!bounds.contains([u.lat, u.lng])) continue;
       const p = map.project([u.lat, u.lng], zoom);
       placed.push(p);
       const key = cellKey(p);
-      // If it's already on screen as a normal pill, keep that key: the reconciler
-      // then leaves the marker (and its open popup) alone when you star it.
+      // If already shown as a normal pill, keep that key so starring leaves the
+      // marker (and its open popup) alone.
       desired.set(shown.has("p:" + key) ? "p:" + key : "s:" + u.flats[0].id, marker(u));
     }
 
-    // Everything else competes for the maxPills budget, nearest the middle of the
-    // view first — so pills cluster where you're looking instead of scattering. Ties
-    // (within one pill's width of each other) fall back to the order of `units`,
-    // which is groups first, then cheapest.
+    // The rest compete for the maxPills budget, nearest the view centre first so
+    // pills cluster where you're looking. Ties fall back to `units` order (groups
+    // first, then cheapest).
     const c = map.project(map.getCenter(), zoom);
     const candidates = [];
     units.forEach((u, i) => {
@@ -540,9 +544,8 @@
       }
     }
 
-    // Second pass: the user asked for more pills than fit without overlapping, so
-    // honour the number and let them overlap. Keyed by unit id, not by cell — cell
-    // keys are only unique among non-colliding pills.
+    // Second pass: more pills asked for than fit collision-free, so honour the count
+    // and let them overlap. Keyed by unit id — cell keys are unique only when spaced.
     for (const cand of rejected) {
       if (pills >= maxPills) {
         leftovers.push(cand);
@@ -578,8 +581,8 @@
   }
 
   function render(listings, loadId) {
-    // A new load id means a fresh search (filters changed / map re-opened): allow
-    // the view to auto-fit again so it recenters on the new results.
+    // A new load id = fresh search: allow the view to auto-fit again so it
+    // recenters on the new results.
     if (loadId !== lastLoadId) {
       lastLoadId = loadId;
       didFit = false;

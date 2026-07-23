@@ -26,12 +26,23 @@ Diesen Ordner als Zip donwloaden und entpacken oder Repo clonen. Dann je nach Br
 
 ### Firefox
 
+**Am einfachsten** über den offiziellen Firefox-Add-ons-Store — dort ist die
+Erweiterung signiert und installiert sich dauerhaft in jeder Firefox-Version, ohne
+weitere Einstellungen:
+
+👉 **[willkarte auf addons.mozilla.org](https://addons.mozilla.org/firefox/addon/willkarte/)**
+
+<details>
+<summary>Alternativ: die <code>.xpi</code>-Datei manuell installieren</summary>
+
 Funktioniert nur, wenn in `about:config` der Wert `xpinstall.signatures.required`
 auf `false` gesetzt ist (möglich in ESR-, Nightly- oder Developer-Versionen).
 
 1. `about:addons` öffnen
 2. ⚙️ → **Add-on aus Datei installieren…**
 3. **`willkarte-firefox.xpi`** auswählen
+
+</details>
 
 ---
 
